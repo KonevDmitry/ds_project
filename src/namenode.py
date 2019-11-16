@@ -40,11 +40,11 @@ def get_ips():
     return ((datanode1_ip, datanode1_port), (datanode2_ip,datanode2_port))
 
 def send_file(filename, ip, port):
-    os.system("scp ")
+    os.system("scp -P {} {} datanode@{}:{}:/var/storage/{}".format(port, filename,ip, filename))
 
-def send_new_file(filename):
+def send_new_file(filename, ip, port):
     os.mknod(filename)
-    send_file(filename)
+    send_file(filename,ip, port)
 
 
 def file_create(filename):
@@ -52,7 +52,8 @@ def file_create(filename):
     send_msg(ips[0][0], ips[0][1], "send_file")
     send_msg(ips[1][0], ips[1][1], "send_file")
     make_query("Insert into files(filename, datanode1, datadone2) VALUES ({},{},{})".format(filename, ips[0][0], ips[1][1]))
-    send_new_file(filename)
+    send_new_file(filename, ips[0][0], ips[0][1])
+    send_new_file(filename, ips[1][0], ips[1][1])
 
 
 if __name__=="__main__":
@@ -62,3 +63,7 @@ if __name__=="__main__":
             initialize()
             send_msg(datanode1_ip, datanode1_port, a)
             send_msg(datanode2_ip, datanode2_port, a)
+        if a == "create_empty":
+            print("Input name of the file:")
+            filename = input()
+            file_create(filename)
