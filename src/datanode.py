@@ -4,11 +4,13 @@ import random
 import time
 from threading import Thread
 import socket
+
 out = "./var/storage"
 
 TCP_IP = '127.0.0.1'
-TCP_PORT = 5005
+TCP_PORT = 3002
 BUFFER_SIZE = 1024
+
 
 def initial_command():
     if not os.path.exists(out):
@@ -17,7 +19,19 @@ def initial_command():
         shutil.rmtree(out)
         os.makedirs(out)
 
-def get_socket():
+
+def command(command):
+    if (command == "init"):
+        initial_command()
+    elif (command == "create"):
+        print("created")
+    elif (command == "read"):
+        print("readddd")
+    elif (command == "write"):
+        print("xz ")
+
+
+def init():
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     print(s)
     s.bind((TCP_IP, TCP_PORT))
@@ -34,4 +48,5 @@ def get_socket():
 
 
 if __name__ == '__main__':
-    get_socket()
+    name = ""
+    init()
