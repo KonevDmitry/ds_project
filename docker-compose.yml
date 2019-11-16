@@ -1,0 +1,40 @@
+# docker-compose.yml
+version: "3.3"
+services:
+  postgres:
+    image: postgres
+    hostname: postgres
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - 5433:5433
+
+  datanode1:
+      image: "ubuntu"
+      hostname: datanode1
+      # env_file: ./datanode1/.env
+      depends_on:
+        - postgres
+      links:
+        - postgres
+      ports:
+        - 4000:4000
+      environment:
+        WAIT_HOSTS: postgres:5433
+      command: tail -F anything
+
+  datanode2:
+      image: "ubuntu"
+      hostname: datanode2
+      # env_file: ./datanode2/.env
+      ports:
+        - 3001:3001
+      depends_on:
+        - postgres
+      links:
+        - postgres
+      environment:
+        WAIT_HOSTS: postgres:5433
+      command: tail -F anything
