@@ -9,7 +9,7 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     ports:
-      - 5433:5433
+      - 5432:5432
 
   datanode1:
       image: "ubuntu"
@@ -22,7 +22,7 @@ services:
       ports:
         - 4000:4000
       environment:
-        WAIT_HOSTS: postgres:5433
+        WAIT_HOSTS: postgres:5432
       command: tail -F anything
 
   datanode2:
@@ -36,5 +36,5 @@ services:
       links:
         - postgres
       environment:
-        WAIT_HOSTS: postgres:5433
+        WAIT_HOSTS: postgres:5432
       command: tail -F anything
