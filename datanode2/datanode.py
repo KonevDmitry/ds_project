@@ -1,12 +1,8 @@
 import os
 import shutil
-import random
-import time
-from threading import Thread
 import socket
 
 out = "./var/storage"
-
 TCP_IP = "10.91.55.114"
 TCP_PORT = 4000
 BUFFER_SIZE = 1024
@@ -24,19 +20,23 @@ def initialization():
 def read_file(name):
     with open(out + "/" + name, 'rb') as file:
         return file.read()
-    """client side
+    """
+    client side
     with open('./received_files/' + fileName, 'wb') as handle:
-  handle.write(data)"""
+    handle.write(data)
+    """
+
+
+def delete_file(path):
+    os.remove(path)
 
 
 def copy_file(path1, path2):
-    shutil.copyfile(src, dst)
+    shutil.copyfile(path1, path2)
 
 
 def move_file(path1, path2):
-    os.rename(path1, path2)
     shutil.move(path1, path2)
-    os.replace(path1, path2)
 
 
 def delete_directory(path):
@@ -47,21 +47,22 @@ def make_directory(path):
     return os.makedirs(path)
 
 
-def read_directory(path):
-    return os.listdir(path)
-
-
 def command(command):
-    if (command == "initialize"):
+    data = command.split(' ')
+    if data[0] == "init":
         initialization()
-    elif (command == "create"):
-        pass
-    elif (command == "read"):
-        pass
-    elif (command == "write"):
-        print("xz ")
-    elif (command == "send_file"):
-        pass
+    elif data[0] == "copy":
+        copy_file(data[1], data[2])
+    elif data[0] == "move":
+        move_file(data[1], data[2])
+    elif data[0] == "delete":
+        delete_file(data[1])
+    elif data[0] == "makedir":
+        make_directory(data[1])
+    elif data[0] == "deletedir":
+        delete_directory(data[1])
+    elif data[0] == "read":  # !!!!!!
+        read_file(data[1])
 
 
 def get_message():
@@ -81,4 +82,5 @@ def get_message():
 
 if __name__ == '__main__':
     name = ""
-    get_message()
+    command("move ./var/storage/new3/1 ./var/storage/new1/1")
+    # get_message()

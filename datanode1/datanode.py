@@ -1,14 +1,14 @@
 import os
 import shutil
 import socket
-out = "./var/storage"
 
-TCP_IP = "10.91.8.155"
-TCP_PORT = 3001
+out = "./var/storage"
+TCP_IP = "10.91.55.114"
+TCP_PORT = 4000
 BUFFER_SIZE = 1024
 
 
-def initial_command():
+def initialization():
     if not os.path.exists(out):
         os.makedirs(out)
     else:
@@ -16,21 +16,53 @@ def initial_command():
         os.makedirs(out)
 
 
-def create_file(name):
-    os.mknod(out + '/' + name)
+# переделать
+def read_file(name):
+    with open(out + "/" + name, 'rb') as file:
+        return file.read()
+    """
+    client side
+    with open('./received_files/' + fileName, 'wb') as handle:
+    handle.write(data)
+    """
+
+
+def delete_file(path):
+    os.remove(path)
+
+
+def copy_file(path1, path2):
+    shutil.copyfile(path1, path2)
+
+
+def move_file(path1, path2):
+    shutil.move(path1, path2)
+
+
+def delete_directory(path):
+    return shutil.rmtree(path)
+
+
+def make_directory(path):
+    return os.makedirs(path)
 
 
 def command(command):
     data = command.split(' ')
     if data[0] == "init":
-        initial_command()
-    elif data[0] == "create":
-        create_file(data[1])
-        print("created")
-    elif data[0] == "read":
-        print("read")
-    elif data[0] == "write":
-        print("xz ")
+        initialization()
+    elif data[0] == "copy":
+        copy_file(data[1], data[2])
+    elif data[0] == "move":
+        move_file(data[1], data[2])
+    elif data[0] == "delete":
+        delete_file(data[1])
+    elif data[0] == "makedir":
+        make_directory(data[1])
+    elif data[0] == "deletedir":
+        delete_directory(data[1])
+    elif data[0] == "read":  # !!!!!!
+        read_file(data[1])
 
 
 def get_message():
@@ -41,15 +73,14 @@ def get_message():
     print('Connection address:', addr)
     while 1:
         data = conn.recv(BUFFER_SIZE)
-        if not data:
-            break
+        if not data: break
         print("received data:", data)
+        conn.send(data)  # echo
         command(data)
-        conn.send(data)
-
     conn.close()
 
 
 if __name__ == '__main__':
     name = ""
-    get_message()
+    command("move ./var/storage/new3/1 ./var/storage/new1/1")
+    # get_message()
