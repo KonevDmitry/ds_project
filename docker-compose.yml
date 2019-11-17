@@ -10,45 +10,45 @@ services:
       POSTGRES_PASSWORD: postgres
     ports:
       - 5432:5432
-
-  namenode:
-    build: ./namenode
-    hostname: namenode
-    # env_file: ./datanode1/.env
-    depends_on:
-      - postgres
-    links:
-      - postgres
-    ports:
-      - 3002:3002
-    environment:
-      WAIT_HOSTS: postgres:5432
-    command: tail -F anything   
-
-  datanode1:
-    build: ./datanode1
-    hostname: datanode1
-    # env_file: ./datanode1/.env
-    depends_on:
-      - postgres
-    links:
-      - postgres
-    ports:
-      - 4000:4000
-    environment:
-      WAIT_HOSTS: postgres:5432
-    command: tail -F anything
-
-  datanode2:
-    build: ./datanode2
-    hostname: datanode2
-    # env_file: ./datanode2/.env
-    ports:
-      - 3001:3001
-    depends_on:
-      - postgres
-    links:
-      - postgres
-    environment:
-      WAIT_HOSTS: postgres:5432
-    command: tail -F anything
+#
+#  namenode:
+#    build: ./namenode
+#    hostname: namenode
+#    # env_file: ./datanode1/.env
+#    depends_on:
+#      - postgres
+#    links:
+#      - postgres
+#    ports:
+#      - 3002:3002
+#    environment:
+#      WAIT_HOSTS: postgres:5432
+#    command: tail -F anything
+#
+#  datanode1:
+#    build: ./datanode1
+#    hostname: datanode1
+#    # env_file: ./datanode1/.env
+#    depends_on:
+#      - postgres
+#    links:
+#      - postgres
+#    ports:
+#      - 4000:4000
+#    environment:
+#      WAIT_HOSTS: postgres:5432
+#    command: tail -F anything
+#
+#  datanode2:
+#    build: ./datanode2
+#    hostname: datanode2
+#    # env_file: ./datanode2/.env
+#    ports:
+#      - 3001:3001
+#    depends_on:
+#      - postgres
+#    links:
+#      - postgres
+#    environment:
+#      WAIT_HOSTS: postgres:5432
+#    command: tail -F anything
