@@ -3,8 +3,8 @@ import shutil
 import socket
 
 out = "./var/storage"
-TCP_IP = "10.91.55.114"
-TCP_PORT = 4000
+TCP_IP = "10.91.8.155"
+TCP_PORT = 3001
 BUFFER_SIZE = 1024
 
 
@@ -16,15 +16,17 @@ def initialization():
         os.makedirs(out)
 
 
-# переделать
-def read_file(name):
-    with open(out + "/" + name, 'rb') as file:
-        return file.read()
-    """
-    client side
-    with open('./received_files/' + fileName, 'wb') as handle:
-    handle.write(data)
-    """
+def read_file(path, s1):
+    # host = socket.gethostname()  # Get local machine name
+    # port = 12345  # Reserve a port for your service.
+    f = open(path, 'rb')
+    l = f.read(1024)
+    while (l):
+        print(l)
+        s1.send(l)
+        l = f.read(1024)
+    s1.send(b'')
+    f.close()
 
 
 def delete_file(path):
@@ -47,10 +49,16 @@ def make_directory(path):
     return os.makedirs(path)
 
 
-def command(command):
-    data = command.split(' ')
+def create_file(path):
+    return os.mknod(path)
+
+
+def command(command, s1):
+    data = command.decode().split(' ')
     if data[0] == "init":
         initialization()
+    if data[0] == "create":
+        create_file(data[1])
     elif data[0] == "copy":
         copy_file(data[1], data[2])
     elif data[0] == "move":
@@ -62,21 +70,29 @@ def command(command):
     elif data[0] == "deletedir":
         delete_directory(data[1])
     elif data[0] == "read":  # !!!!!!
-        read_file(data[1])
+        read_file(data[1], s1)
 
 
 def get_message():
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.bind((TCP_IP, TCP_PORT))
     s.listen(5)
+
+    s1=socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s1.connect(("10.91.8.168", 3002))
+
     conn, addr = s.accept()
     print('Connection address:', addr)
     while 1:
         data = conn.recv(BUFFER_SIZE)
-        if not data: break
+        if data == b'close':
+            conn.close()
+            s1.close()
+            s.close()
+            break
+
         print("received data:", data)
-        conn.send(data)  # echo
-        command(data)
+        command(data, s1)
     conn.close()
 
 

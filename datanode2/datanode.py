@@ -82,5 +82,4 @@ def get_message():
 
 if __name__ == '__main__':
     name = ""
-    command("move ./var/storage/new3/1 ./var/storage/new1/1")
-    # get_message()
+    get_message()
