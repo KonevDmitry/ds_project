@@ -4,7 +4,7 @@ import socket
 
 out = "./var/storage"
 TCP_IP = "10.91.8.155"
-TCP_PORT = 3000
+TCP_PORT = 3001
 BUFFER_SIZE = 1024
 
 
@@ -19,12 +19,16 @@ def initialization():
 def read_file(path, s1):
     f = open(path, 'rb')
     l = f.read(1024)
-    while (l):
-        print(l)
-        s1.send(l)
-        l = f.read(1024)
-    s1.send(b'')
-    f.close()
+
+    if (l == b''):
+        s1.send(b'0')
+    else:
+        s1.send(b'1')
+        while (l):
+            s1.send(l)
+            l = f.read(1024)
+        # s1.send(b'')
+        f.close()
 
 
 def delete_file(path):
@@ -51,20 +55,20 @@ def create_file(path):
     return os.mknod(path)
 
 
-def write(filename, conn):
+def write(filename, conn, s1):
     with open(filename, 'wb') as handle:
         l = conn.recv(1024)
-        handle.write(l)
 
-        while (len(l) > 1024):
+        while (l != b'0'):
             print("Receiving...")
-            l = conn.recv(1024)
             handle.write(l)
+            l = conn.recv(1024)
             print(l)
+
         handle.close()
 
 
-def command(command, s1,conn):
+def command(command, s1, conn):
     data = command.decode().split(' ')
     if data[0] == "init":
         initialization()
@@ -83,7 +87,7 @@ def command(command, s1,conn):
     elif data[0] == "read":  # !!!!!!
         read_file(data[1], s1)
     elif data[0] == "write":
-        write(data[1], conn)
+        write(data[1], conn, s1)
 
 
 def get_message():
@@ -92,20 +96,23 @@ def get_message():
     s.listen(5)
 
     s1 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s1.connect(("10.91.8.168", 3002))
-    # s1.connect(("10.91.8.168", 3003))
+    s1.connect(("10.91.8.168", 3003))
+    #s1.connect(("10.91.8.168", 3002))
     conn, addr = s.accept()
     print('Connection address:', addr)
     while 1:
-        data = conn.recv(BUFFER_SIZE)
-        if not data or data == b'close':
-            conn.close()
-            s1.close()
-            s.close()
-            break
+        try:
+            data = conn.recv(BUFFER_SIZE)
+            if not data or data == b'close':
+                conn.close()
+                s1.close()
+                s.close()
+                break
 
-        print("received data:", data)
-        command(data, s1,conn)
+            print("received data:", data)
+            command(data, s1, conn)
+        except:
+            pass
     conn.close()
 
 
