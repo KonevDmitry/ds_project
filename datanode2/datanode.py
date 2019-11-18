@@ -106,11 +106,11 @@ def get_message():
     while 1:
         try:
             data = conn.recv(BUFFER_SIZE)
-            if data == b'close':
+            if not data or data == b'close':
                 conn.close()
                 s1.close()
                 s.close()
-                break
+                sys.exit("0")
 
             print("received data:", data)
             command(data, s1, conn)
