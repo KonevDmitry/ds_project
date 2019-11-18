@@ -6,7 +6,7 @@ import random
 import time
 import pathlib
 import sys
-
+import subprocess
 
 var_stor = "./var/storage"
 curr_dir = "/"
@@ -96,7 +96,7 @@ def check_nodes():
     while True:
         for i in datanodes:
             a = i.split(":")
-            response = os.system("ping -c 1 " + a[0]+ " > /dev/null 2>&1")
+            response = subprocess.getstatusoutput("ping -c 1 " + a[0])
             if response == 0:
                 backup(i)
         time.sleep(5)
@@ -124,7 +124,7 @@ def backup(addr):
             file = read_from_node(i[0], i[1], back_dir)  # TODO
         else:
             file = read_from_node(i[0], i[2], back_dir)
-        write1(i, addr, file)
+        write1(i, addr, file, back_dir)
     datanodes.remove(addr)
 
 
@@ -190,11 +190,12 @@ def send_file(path, dfs_path, ip):
 
 
 def write1(fileinf, file, addr, backup_dir):
-    if len(datanodes) < 3:
+    if len(datanodes) <= n_repl:
         print("Can't replicate")
     else:
         for i in datanodes:
-            if i != fileinf[1] and i != fileinf[2]:
+            # if i != fileinf[1] and i != fileinf[2]:
+            if i != fileinf[1]:
                 send_file(file, i, backup_dir)
                 if addr == fileinf[1]:
                     make_query("UPDATE files set datanode1='{}'".format(i), False)
@@ -336,7 +337,7 @@ if __name__ == "__main__":
     t = threading.Thread(target=manage_connections)
     t.daemon = True
     t.start()
-    t2 = threading.Thread(target=check_nodes())
+    t2 = threading.Thread(target=check_nodes)
     t2.daemon = True
     t2.start()
     count = 0
