@@ -5,28 +5,23 @@ import os
 import random
 import time
 import pathlib
+import sys
+
 
 var_stor = "./var/storage"
 curr_dir = "/"
 
 # , "10.91.8.155:3001"
-datanodes = ["10.91.8.155:3001"]
+datanodes = []
 TCP_IP = '10.91.8.168'
-TCP_PORT = 3003
+TCP_PORT = 3002
 rec_s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 rec_s.bind((TCP_IP, TCP_PORT))
 rec_s.listen(5)
 BUFFER_SIZE = 1024
 s = {}
 conn = {}
-
-for i in datanodes:
-    r = i.split(":")
-    conn[i], addr = rec_s.accept()
-    print(addr)
-    s[i] = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s[i].connect((r[0], int(r[1])))
-
+n_repl = 1
 
 def check_file(filename):
     if curr_dir != '/':
@@ -101,21 +96,36 @@ def check_nodes():
     while True:
         for i in datanodes:
             a = i.split(":")
-            response = os.system("ping -c 1 " + a[0])
+            response = os.system("ping -c 1 " + a[0]+ " > /dev/null 2>&1")
             if response == 0:
                 backup(i)
         time.sleep(5)
 
 
+def manage_connections():
+    while 1:
+        connection, addr = rec_s.accept()
+        port = connection.recvfrom(1024)
+        print("Node with address: {} connected". format(addr))
+        key = addr[0] + ":" + port[0].decode()
+        s[key] = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s[key].connect((addr[0], int(port[0].decode())))
+        conn[key] = connection
+        time.sleep(3)
+        datanodes.append(key)
+
+
 def backup(addr):
     a = make_query("SELECT * FROM files Where datanode1='{}' AND is_dir=FALSE;".format(addr), True)
     a += make_query("SELECT * FROM files Where datanode2='{}' AND is_dir=FALSE;".format(addr), True)
+    back_dir = './backup_{}'.format(addr)
     for i in a:
         if i[1] != addr:
-            file = read_from_node(i[0], i[1])  # TODO
+            file = read_from_node(i[0], i[1], back_dir)  # TODO
         else:
-            file = read_from_node(i[0], i[2])
-        write1(i, file)
+            file = read_from_node(i[0], i[2], back_dir)
+        write1(i, addr, file)
+    datanodes.remove(addr)
 
 
 def read(filename):
@@ -124,10 +134,10 @@ def read(filename):
             ips = get_ips_for_file(curr_dir + filename)
         else:
             ips = get_ips_for_file(curr_dir + '/' + filename)
-        read_from_node(filename, ips[0])
+        read_from_node(filename, ips[0], './received_files')
 
 
-def read_from_node(filename, addr):
+def read_from_node(filename, addr, save_dir):
     if check_file(filename):
         if curr_dir != "/":
             path = curr_dir + "/" + filename
@@ -137,8 +147,8 @@ def read_from_node(filename, addr):
         sock = s[addr]
         rec_con = conn[addr]
         send_msg(sock, "read " + var_stor + path)
-        pathlib.Path('./received_files').mkdir(parents=True, exist_ok=True)
-        with open('./received_files/' + filename, 'wb') as handle:
+        pathlib.Path(save_dir+path[:path.rfind("/")+1]).mkdir(parents=True, exist_ok=True)
+        with open(save_dir + path, 'wb') as handle:
             if rec_con.recv(1024) == b'1':
                 l = rec_con.recv(1024)
                 handle.write(l)
@@ -165,8 +175,6 @@ def write(path, dfs_path):
 
 
 def send_file(path, dfs_path, ip):
-    # host = socket.gethostname()  # Get local machine name
-    # port = 12345  # Reserve a port for your service.
     s1 = s[ip]
     send_msg(s1, "write {}".format(var_stor+dfs_path))
     time.sleep(2)
@@ -181,14 +189,17 @@ def send_file(path, dfs_path, ip):
     f.close()
 
 
-def write1(fileinf, file):
-    # TODO
+def write1(fileinf, file, addr, backup_dir):
     if len(datanodes) < 3:
         print("Can't replicate")
     else:
         for i in datanodes:
             if i != fileinf[1] and i != fileinf[2]:
-                send_file(file, i)
+                send_file(file, i, backup_dir)
+                if addr == fileinf[1]:
+                    make_query("UPDATE files set datanode1='{}'".format(i), False)
+                else:
+                    make_query("UPDATE files set datanode2='{}'".format(i), False)
 
 
 def mkdir(new_path):
@@ -201,16 +212,6 @@ def mkdir(new_path):
                    .format(path, "_", "_", curr_dir, True), False)
         for i in s.values():
             send_msg(i, "makedir " + var_stor + path)
-
-
-# def test_file(filename):
-#     if curr_dir != "/":
-#         make_query("Insert into files(filename, datanode1, datanode2, dir, is_dir) VALUES ('{0}','{1}','{2}','{3}', {4})"
-#                    .format(curr_dir+"/"+filename, "12", "ips[1][0]", curr_dir, False), False)
-#     else:
-#         make_query("Insert into files(filename, datanode1, datanode2, dir, is_dir) VALUES ('{0}','{1}','{2}','{3}', {4})"
-#                    .format(curr_dir+filename, "12", "ips[1][0]", curr_dir, False), False)
-#
 
 
 def info(filename):
@@ -263,13 +264,12 @@ def delete_file(filename):
 
 
 def close():
-    rec_s.close()
-    rec_s.detach()
     for i in datanodes:
         send_msg(s[i], "close")
         s[i].close()
         conn[i].close()
-
+    rec_s.close()
+    rec_s.detach()
 
 def create(filename):
     if check_exists(filename):
@@ -333,9 +333,18 @@ def cd(path):
 
 
 if __name__ == "__main__":
-    # t = threading.Thread(target=check_nodes())
-    # t.daemon = True
-    # t.start()
+    t = threading.Thread(target=manage_connections)
+    t.daemon = True
+    t.start()
+    t2 = threading.Thread(target=check_nodes())
+    t2.daemon = True
+    t2.start()
+    count = 0
+    while len(datanodes) < n_repl:
+        print("Waiting for datanodes")
+        count +=1
+        count = min(count, 15)
+        time.sleep(count)
     while True:
         try:
             print(curr_dir + ">", end=" ")
@@ -363,7 +372,7 @@ if __name__ == "__main__":
                 ls()
             elif a[0] == "close":
                 close()
-                exit(0)
+                sys.exit(0)
             elif a[0] == "delete":
                 delete_file(a[1])
             elif a[0] == 'create':
@@ -377,9 +386,13 @@ if __name__ == "__main__":
 
             elif a[0] == 'write':
                 write(a[1], a[2])
-
+            elif a[0] == 'lsdn':
+                print(datanodes)
             else:
                 print(a[0] + ": Command not found")
+        except SystemExit:
+            print("Bye")
+            sys.exit(0)
         except:
             print("Something's wrong")
             pass
