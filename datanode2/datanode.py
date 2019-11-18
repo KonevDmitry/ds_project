@@ -4,8 +4,8 @@ import socket
 import sys
 
 out = "./var/storage"
-TCP_IP = "10.91.4.234"
-TCP_PORT = 4001
+TCP_IP = "10.0.15.3"
+TCP_PORT = 4000
 BUFFER_SIZE = 1024
 
 
