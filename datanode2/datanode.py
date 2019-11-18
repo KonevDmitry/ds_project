@@ -1,10 +1,11 @@
 import os
 import shutil
 import socket
+import sys
 
 out = "./var/storage"
-TCP_IP = "10.91.55.114"
-TCP_PORT = 4000
+TCP_IP = "10.91.4.234"
+TCP_PORT = 4001
 BUFFER_SIZE = 1024
 
 
@@ -36,11 +37,11 @@ def delete_file(path):
 
 
 def copy_file(path1, path2):
-    shutil.copyfile(path1, path2)
+    return shutil.copyfile(path1, path2)
 
 
 def move_file(path1, path2):
-    shutil.move(path1, path2)
+    return shutil.move(path1, path2)
 
 
 def delete_directory(path):
@@ -60,7 +61,6 @@ def write(filename, conn, s1):
         l = conn.recv(1024)
 
         while (l != b'0'):
-            print("Receiving...")
             handle.write(l)
             l = conn.recv(1024)
             print(l)
@@ -96,14 +96,17 @@ def get_message():
     s.listen(5)
 
     s1 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s1.connect(("10.91.8.168", 3003))
-    #s1.connect(("10.91.8.168", 3002))
+    #s1.connect(("10.91.8.168", 3003))
+    s1.connect(("10.91.8.168", 3002))
+
+    s1.send(bytes(str(TCP_PORT).encode()))
+
     conn, addr = s.accept()
     print('Connection address:', addr)
     while 1:
         try:
             data = conn.recv(BUFFER_SIZE)
-            if not data or data == b'close':
+            if data == b'close':
                 conn.close()
                 s1.close()
                 s.close()
@@ -111,10 +114,11 @@ def get_message():
 
             print("received data:", data)
             command(data, s1, conn)
+        except SystemExit:
+            sys.exit("0")
         except:
             pass
     conn.close()
-
 
 if __name__ == '__main__':
     name = ""
