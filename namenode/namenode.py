@@ -11,9 +11,9 @@ import subprocess
 var_stor = "./var/storage"
 curr_dir = "/"
 
-# , "10.91.8.155:3001"
+
 datanodes = []
-TCP_IP = '15.0.0.5'
+TCP_IP = "0.0.0.0"
 TCP_PORT = 3002
 rec_s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 rec_s.bind((TCP_IP, TCP_PORT))
@@ -22,7 +22,6 @@ BUFFER_SIZE = 1024
 s = {}
 conn = {}
 n_repl = 1
-
 def check_file(filename):
     if curr_dir != '/':
         path = curr_dir + "/" + filename
@@ -63,9 +62,8 @@ def get_ips_for_file(path):
 
 def make_query(query, is_return):
     conn = psycopg2.connect(dbname='postgres', user='postgres',
-                            password='postgres', host='15.0.0.0', port="5433")
+                            password='postgres', host='localhost', port="5432")
     cursor = conn.cursor()
-    print(conn)
     cursor.execute(query)
     conn.commit()
     if is_return:
@@ -88,7 +86,7 @@ def send_msg(sock, msg):
 
 
 def get_ips():
-    count = random.sample(datanodes, 1) # TODO сменть на 2
+    count = random.sample(datanodes, 2) # TODO сменть на 2
     return count
 
 
@@ -166,10 +164,10 @@ def write(path, dfs_path):
     ips = get_ips()
     if len(dfs_path[:dfs_path.rfind('/')]) == 0:
         make_query("INSERT INTO files(filename, datanode1, datanode2, dir,is_dir, size) VALUES ('{}','{}','{}', '{}',{}, '{}')".
-               format(dfs_path, ips[0], 'ips[1]', '/',False, os.path.getsize(path)), False)
+               format(dfs_path, ips[0], ips[1], '/',False, os.path.getsize(path)), False)
     else:
         make_query("INSERT INTO files(filename, datanode1, datanode2, dir,is_dir, size) VALUES ('{}','{}','{}', '{}',{}, '{}')".
-               format(dfs_path, ips[0], 'ips[1]', dfs_path[:dfs_path.rfind('/')],False, os.path.getsize(path)), False)
+               format(dfs_path, ips[0], ips[1], dfs_path[:dfs_path.rfind('/')],False, os.path.getsize(path)), False)
     for i in ips:
         send_file(path, dfs_path, i)
 
@@ -194,8 +192,8 @@ def write1(fileinf, file, addr, backup_dir):
         print("Can't replicate")
     else:
         for i in datanodes:
-            # if i != fileinf[1] and i != fileinf[2]:
-            if i != fileinf[1]:
+            if i != fileinf[1] and i != fileinf[2]:
+            # if i != fileinf[1]:
                 send_file(file, i, backup_dir)
                 if addr == fileinf[1]:
                     make_query("UPDATE files set datanode1='{}'".format(i), False)
@@ -261,7 +259,7 @@ def delete_file(filename):
         else:
             make_query("DELETE FROM files Where filename='{}'".format(path1), False)
             send_msg(s[a[0][1]], "delete {}".format(path))
-            # send_msg(s[a[0][2]], "delete {}".format(path)) # TODO анеоментнуть
+            send_msg(s[a[0][2]], "delete {}".format(path))
 
 
 def close():
@@ -277,16 +275,16 @@ def create(filename):
         ips = get_ips()
         if curr_dir != "/":
             send_msg(s[ips[0]], "create " + var_stor+curr_dir + "/" + filename)
-            # send_msg(s[ips[1]], "create " + var_stor+curr_dir+filename) #TODO
+            send_msg(s[ips[1]], "create " + var_stor+curr_dir + "/" + filename) #TODO
             make_query(
                 "Insert into files(filename, datanode1, datanode2, dir, is_dir, size) VALUES ('{0}','{1}','{2}','{3}', {4}, '0')"
-                    .format(curr_dir + "/" + filename, ips[0], "ips[1]", curr_dir, False), False)
+                    .format(curr_dir + "/" + filename, ips[0], ips[1], curr_dir, False), False)
         else:
             send_msg(s[ips[0]], "create " + var_stor + curr_dir + filename)
-            # send_msg(s[ips[1]], "create " + var_stor+curr_dir+filename) #TODO
+            send_msg(s[ips[1]], "create " + var_stor + curr_dir + filename) #TODO
             make_query(
                 "Insert into files(filename, datanode1, datanode2, dir, is_dir, size) VALUES ('{0}','{1}','{2}','{3}', {4}, '0')"
-                    .format(curr_dir + filename, ips[0], "ips[1]", curr_dir, False), False)
+                    .format(curr_dir + filename, ips[0], ips[1], curr_dir, False), False)
 
 
 def move(path1, path2):
@@ -294,11 +292,11 @@ def move(path1, path2):
         ips = get_ips_for_file(path1)
         make_query(
             "Insert into files(filename, datanode1, datanode2, dir, is_dir) VALUES ('{0}','{1}','{2}','{3}', {4})"
-                .format(path2, ips[0], "ips[1]", curr_dir, False), False)
+                .format(path2, ips[0], ips[1], curr_dir, False), False)
         make_query("DELETE FROM files Where filename='{}'".format(path1), False)
         print(ips)
         send_msg(s[ips[0]], "move " + var_stor+path1 + " " + var_stor+path2)
-        # send_msg(s[ips[1]], "move {} {}".format(path1, path2))
+        send_msg(s[ips[1]], "move " + var_stor+path1 + " " + var_stor+path2)
 
 
 def copy(path1, path2):
@@ -308,7 +306,7 @@ def copy(path1, path2):
             "Insert into files(filename, datanode1, datanode2, dir, is_dir) VALUES ('{0}','{1}','{2}','{3}', {4})"
                 .format(path2, ips[0], "ips[1]", curr_dir, False), False)
         send_msg(s[ips[0]], "copy {} {}".format(var_stor+path1, var_stor+path2))
-        # send_msg(s[ips[1]], "move {} {}".format(path1, path2))
+        send_msg(s[ips[1]], "copy {} {}".format(var_stor+path1, var_stor+path2))
 
 
 def ls():
@@ -347,53 +345,53 @@ if __name__ == "__main__":
         count = min(count, 15)
         time.sleep(count)
     while True:
-        try:
-            print(curr_dir + ">", end=" ")
-            a = input().split(" ")
-            if a[0] == "initialize":
-                initialize()
+        # try:
+        print(curr_dir + ">", end=" ")
+        a = input().split(" ")
+        if a[0] == "initialize":
+            initialize()
 
-            elif a[0] == "cd":
-                cd(a[1])
-            elif a[0] == "ls":
-                ls()
+        elif a[0] == "cd":
+            cd(a[1])
+        elif a[0] == "ls":
+            ls()
 
-            elif a[0] == "info":
-                print(info(a[1])[0])
+        elif a[0] == "info":
+            print(info(a[1])[0])
 
-            elif a[0] == "mkdir":
-                mkdir(a[1])
-                ls()
+        elif a[0] == "mkdir":
+            mkdir(a[1])
+            ls()
 
-            elif a[0] == 'read':
-                read(a[1]) # TODO
+        elif a[0] == 'read':
+            read(a[1]) # TODO
 
-            elif a[0] == "deletedir":
-                delete_dir(a[1])
-                ls()
-            elif a[0] == "close":
-                close()
-                sys.exit(0)
-            elif a[0] == "delete":
-                delete_file(a[1])
-            elif a[0] == 'create':
-                create(a[1])
-
-            elif a[0] == 'move':
-                move(a[1], a[2])
-
-            elif a[0] == 'copy':
-                copy(a[1], a[2])
-
-            elif a[0] == 'write':
-                write(a[1], a[2])
-            elif a[0] == 'lsdn':
-                print(datanodes)
-            else:
-                print(a[0] + ": Command not found")
-        except SystemExit:
-            print("Bye")
+        elif a[0] == "deletedir":
+            delete_dir(a[1])
+            ls()
+        elif a[0] == "close":
+            close()
             sys.exit(0)
-        except:
-            print("Something's wrong")
-            pass
+        elif a[0] == "delete":
+            delete_file(a[1])
+        elif a[0] == 'create':
+            create(a[1])
+
+        elif a[0] == 'move':
+            move(a[1], a[2])
+
+        elif a[0] == 'copy':
+            copy(a[1], a[2])
+
+        elif a[0] == 'write':
+            write(a[1], a[2])
+        elif a[0] == 'lsdn':
+            print(datanodes)
+        else:
+            print(a[0] + ": Command not found")
+        # except SystemExit:
+        #     print("Bye")
+        #     sys.exit(0)
+        # except:
+        #     print("Something's wrong")
+        #     pass
