@@ -4,7 +4,7 @@ import socket
 import sys
 
 out = "./var/storage"
-TCP_IP = "0.0.0.0"
+TCP_IP = "15.0.0.3"
 TCP_PORT = 4000
 BUFFER_SIZE = 1024
 
@@ -96,7 +96,8 @@ def get_message():
     s.listen(5)
 
     s1 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s1.connect(("0.0.0.0", 3002))
+    #s1.connect(("10.91.8.168", 3003))
+    s1.connect(("15.0.0.5", 3002))
 
     s1.send(bytes(str(TCP_PORT).encode()))
 
