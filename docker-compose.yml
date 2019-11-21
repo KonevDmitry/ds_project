@@ -10,60 +10,75 @@ services:
       POSTGRES_PASSWORD: postgres
     ports:
       - 5433:5433
-#    networks:
-#      mynet:
-#        ipv4_address: 15.0.0.4
+  #    networks:
+  #      mynet:
+  #        ipv4_address: 15.0.0.4
 
   namenode:
-   build: ./namenode
-   hostname: namenode
-   # env_file: ./datanode1/.env
-   depends_on:
-     - postgres
-   links:
-     - postgres
-   ports:
-     - 3002:3002
-   environment:
-     WAIT_HOSTS: postgres:5433
-#   networks:
-#      mynet:
-#        ipv4_address: 15.0.0.5
+    build: ./namenode
+    hostname: namenode
+    # env_file: ./datanode1/.env
+    depends_on:
+      - postgres
+    links:
+      - postgres
+    ports:
+      - 3002:3002
+    environment:
+      WAIT_HOSTS: postgres:5433
+    networks:
+      mynet:
+        ipv4_address: 10.0.15.100
+  #   networks:
+  #      mynet:
+  #        ipv4_address: 15.0.0.5
 
   datanode1:
     build: ./datanode1
     hostname: datanode1
     # env_file: ./datanode1/.env
     depends_on:
-     - postgres
-     - namenode
+      - postgres
+      - namenode
     links:
-     - postgres
-     - namenode
+      - postgres
+      - namenode
     ports:
-     - 3001:3001
+      - 3001:3001
     environment:
-     WAIT_HOSTS: postgres:5433
-     WAIT_HOSTS: namenode:3002
-#    networks:
-#      mynet:
-#        ipv4_address: 15.0.0.2
+      WAIT_HOSTS: postgres:5433
+      WAIT_HOSTS: namenode:3002
+    networks:
+      mynet:
+        ipv4_address: 10.0.15.10
+  #    networks:
+  #      mynet:
+  #        ipv4_address: 15.0.0.2
 
   datanode2:
     build: ./datanode2
     hostname: datanode2
     # env_file: ./datanode2/.env
     ports:
-     - 4000:4000
+      - 4000:4000
     depends_on:
-     - postgres
-     - namenode
+      - postgres
+      - namenode
     links:
-     - postgres
-     - namenode
+      - postgres
+      - namenode
     environment:
-     WAIT_HOSTS: postgres:5432
-     WAIT_HOSTS: namenode:3002s
+      WAIT_HOSTS: postgres:5432
+      WAIT_HOSTS: namenode:3002s
+    networks:
+      mynet:
+        ipv4_address: 10.0.15.11
+networks:
+    mynet:
+        ipam:
+            driver: default
+            config:
+                - subnet: 10.0.0.0/16
 #    networks:
 #      mynet:
 #        ipv4_address: 15.0.0.3
