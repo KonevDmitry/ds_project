@@ -10,12 +10,11 @@ services:
       POSTGRES_PASSWORD: postgres
     ports:
       - 5432:5432
-     networks:
+    networks:
       mynet:
-          ipv4_address: 
-            10.0.15.0
+        ipv4_address: 0.0.15.0
 
- namenode:
+  namenode:
    build: ./namenode
    hostname: namenode
    # env_file: ./datanode1/.env
@@ -29,47 +28,44 @@ services:
      WAIT_HOSTS: postgres:5432
    networks:
       mynet:
-          ipv4_address: 
-            10.0.15.2
+        ipv4_address: 0.0.15.1
 
- datanode1:
-   build: ./datanode1
-   hostname: datanode1
-   # env_file: ./datanode1/.env
-   depends_on:
+  datanode1:
+    build: ./datanode1
+    hostname: datanode1
+    # env_file: ./datanode1/.env
+    depends_on:
      - postgres
-   links:
+    links:
      - postgres
-   ports:
-     - 4000:4000
-   environment:
+    ports:
+     - 3001:3001
+    environment:
      WAIT_HOSTS: postgres:5432
-   networks:
-        mynet:
-            ipv4_address: 
-              10.0.15.2
+    networks:
+      mynet:
+        ipv4_address: 0.0.15.2
 
- datanode2:
-   build: ./datanode2
-   hostname: datanode2
-   # env_file: ./datanode2/.env
-   ports:
+  datanode2:
+    build: ./datanode2
+    hostname: datanode2
+    # env_file: ./datanode2/.env
+    ports:
      - 4000:4000
-   depends_on:
+    depends_on:
      - postgres
-   links:
+    links:
      - postgres
-   environment:
+    environment:
      WAIT_HOSTS: postgres:5432
-      networks:
-        mynet:
-            ipv4_address: 
-              10.0.15.3
+    networks:
+      mynet:
+        ipv4_address: 0.0.15.3
 
 
 networks:
-    mynet:
-        driver: bridge
-        ipam:
-            config:
-              - subnet: 10.0.15.0/8
+  mynet:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 0.0.15.0/8

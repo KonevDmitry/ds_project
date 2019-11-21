@@ -1,4 +1,6 @@
-FROM ubuntu:18.04
+FROM python:3.7
 COPY . /datanode2
-RUN useradd -ms /bin/bash datanode
-CMD python /datanode2/datanode.py
+EXPOSE 3002
+RUN useradd -ms /bin/bash datanode2
+RUN pip3 install --no-cache-dir -r /datanode1/requirements.txt
+CMD python3 /datanode2/datanode.py
