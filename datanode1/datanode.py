@@ -9,7 +9,7 @@ time.sleep(5)
 
 out = "./var/storage"
 TCP_IP = "0.0.0.0"
-TCP_PORT = 3001
+TCP_PORT = 3000
 BUFFER_SIZE = 1024
 
 

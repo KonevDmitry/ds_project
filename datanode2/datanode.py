@@ -2,9 +2,6 @@ import os
 import shutil
 import socket
 import sys
-import time
-
-time.sleep(5)
 
 out = "./var/storage"
 TCP_IP = "0.0.0.0"
@@ -99,7 +96,6 @@ def get_message():
     s.listen(5)
 
     s1 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    #s1.connect(("10.91.8.168", 3003))
     s1.connect(("0.0.0.0", 3002))
 
     s1.send(bytes(str(TCP_PORT).encode()))
