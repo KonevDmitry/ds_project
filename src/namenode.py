@@ -13,7 +13,7 @@ curr_dir = "/"
 
 # , "10.91.8.155:3001"
 datanodes = []
-TCP_IP = '10.91.8.168'
+TCP_IP = '10.0.15.1'
 TCP_PORT = 3002
 rec_s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 rec_s.bind((TCP_IP, TCP_PORT))

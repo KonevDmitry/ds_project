@@ -6,7 +6,7 @@ import random
 
 out = "./var/storage"
 TCP_IP = "10.0.15.2"
-TCP_PORT = 4000
+TCP_PORT = 3001
 BUFFER_SIZE = 1024
 
 
@@ -98,7 +98,7 @@ def get_message():
 
     s1 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     #s1.connect(("10.91.8.168", 3003))
-    s1.connect(("10.91.8.168", 3002))
+    s1.connect(("15.0.0.5", 3002))
 
     s1.send(bytes(str(TCP_PORT).encode()))
 
