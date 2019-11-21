@@ -111,7 +111,12 @@ def manage_connections():
         conn[key] = connection
         time.sleep(3)
         datanodes.append(key)
+        create_dirs(key)
 
+def create_dirs(addr):
+    a = make_query("Select from files where is_dir=True", True)
+    for i in a:
+        mkdir2(addr, i[0])
 
 def backup(addr):
     a = make_query("SELECT * FROM files Where datanode1='{}' AND is_dir=FALSE;".format(addr), True)
@@ -211,6 +216,9 @@ def mkdir(new_path):
                    .format(path, "_", "_", curr_dir, True), False)
         for i in s.values():
             send_msg(i, "makedir " + var_stor + path)
+
+def mkdir2(addr, path):
+    send_msg(addr, "makedir " + var_stor + path)
 
 
 def info(filename):
