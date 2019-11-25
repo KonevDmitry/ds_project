@@ -2,10 +2,21 @@ import os
 import shutil
 import socket
 import sys
+import argparse
 
-out = "./var/storage"
-TCP_IP = "15.0.0.3"
-TCP_PORT = 4000
+parser = argparse.ArgumentParser()
+parser.add_argument("ip")
+parser.add_argument("port")
+parser.add_argument("name_ip")
+parser.add_argument("name_port")
+args = parser.parse_args()
+
+out = "/var/storage"
+TCP_IP = args.ip
+TCP_PORT = int(args.port)
+
+name_ip = args.name_ip
+name_port = int(args.name_port)
 BUFFER_SIZE = 1024
 
 
@@ -96,8 +107,7 @@ def get_message():
     s.listen(5)
 
     s1 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    #s1.connect(("10.91.8.168", 3003))
-    s1.connect(("15.0.0.5", 3002))
+    s1.connect((name_ip, name_port))
 
     s1.send(bytes(str(TCP_PORT).encode()))
 
@@ -111,14 +121,15 @@ def get_message():
                 s1.close()
                 s.close()
                 sys.exit("0")
-
             print("received data:", data)
             command(data, s1, conn)
         except SystemExit:
-            sys.exit("0")
+            break
         except:
-            pass
+            print("Something's wrong")
+            continue
     conn.close()
+    sys.exit("0")
 
 if __name__ == '__main__':
     name = ""

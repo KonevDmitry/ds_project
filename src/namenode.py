@@ -94,12 +94,13 @@ def get_ips():
 
 def check_nodes():
     while True:
-        for i in datanodes:
-            a = i.split(":")
-            response = subprocess.getstatusoutput("ping -c 1 " + a[0])
-            if response == 0:
-                backup(i)
-        time.sleep(5)
+        while len(datanodes)>=n_repl:
+            for i in datanodes:
+                a = i.split(":")
+                response = subprocess.getstatusoutput("ping -c 1 " + a[0])
+                if response == 0:
+                    backup(i)
+            time.sleep(5)
 
 
 def manage_connections():
@@ -111,7 +112,7 @@ def manage_connections():
         s[key] = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s[key].connect((addr[0], int(port[0].decode())))
         conn[key] = connection
-        time.sleep(3)
+        time.sleep(2)
         datanodes.append(key)
 
 
@@ -332,20 +333,20 @@ def cd(path):
             else:
                 curr_dir = curr_dir + "/" + path  # /
 
-
-if __name__ == "__main__":
+def main():
     t = threading.Thread(target=manage_connections)
     t.daemon = True
     t.start()
-    t2 = threading.Thread(target=check_nodes)
-    t2.daemon = True
-    t2.start()
+    initialize()
     count = 0
     while len(datanodes) < n_repl:
         print("Waiting for datanodes")
         count +=1
         count = min(count, 15)
         time.sleep(count)
+    t2 = threading.Thread(target=check_nodes)
+    t2.daemon = True
+    t2.start()
     while True:
         try:
             print(curr_dir + ">", end=" ")
@@ -366,7 +367,7 @@ if __name__ == "__main__":
                 ls()
 
             elif a[0] == 'read':
-                read(a[1]) # TODO
+                read(a[1])
 
             elif a[0] == "deletedir":
                 delete_dir(a[1])
@@ -397,3 +398,10 @@ if __name__ == "__main__":
         except:
             print("Something's wrong")
             pass
+
+if __name__ == "__main__":
+    try:
+        main()
+    except psycopg2.errors.UndefinedTable:
+        initialize()
+        main()

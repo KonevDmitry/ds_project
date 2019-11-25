@@ -7,21 +7,30 @@ import time
 import pathlib
 import sys
 import subprocess
+import argparse
+import traceback
 
-var_stor = "./var/storage"
+parser = argparse.ArgumentParser()
+parser.add_argument("ip")
+parser.add_argument("port")
+args = parser.parse_args()
+
+TCP_IP = args.ip
+TCP_PORT = int(args.port)
+
+var_stor = "/var/storage"
 curr_dir = "/"
 
 
 datanodes = []
-TCP_IP = "0.0.0.0"
-TCP_PORT = 3002
+
 rec_s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 rec_s.bind((TCP_IP, TCP_PORT))
 rec_s.listen(5)
 BUFFER_SIZE = 1024
 s = {}
 conn = {}
-n_repl = 1
+n_repl = 2
 def check_file(filename):
     if curr_dir != '/':
         path = curr_dir + "/" + filename
@@ -96,7 +105,11 @@ def check_nodes():
             a = i.split(":")
             response = subprocess.getstatusoutput("ping -c 1 " + a[0])
             if response == 0:
-                backup(i)
+                try:
+                    backup(i)
+                except:
+                    print('Somethings wrong in manage_connections')
+                    continue
         time.sleep(5)
 
 
@@ -106,17 +119,21 @@ def manage_connections():
         port = connection.recvfrom(1024)
         print("Node with address: {} connected". format(addr))
         key = addr[0] + ":" + port[0].decode()
+        print(key)
         s[key] = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s[key].connect((addr[0], int(port[0].decode())))
         conn[key] = connection
-        time.sleep(3)
         datanodes.append(key)
         create_dirs(key)
+        time.sleep(3)
+
 
 def create_dirs(addr):
     a = make_query("Select from files where is_dir=True", True)
-    for i in a:
-        mkdir2(addr, i[0])
+    if len(a)>0:
+        for i in a:
+            if len(i)>0:
+                mkdir2(addr, i[0])
 
 def backup(addr):
     a = make_query("SELECT * FROM files Where datanode1='{}' AND is_dir=FALSE;".format(addr), True)
@@ -137,7 +154,7 @@ def read(filename):
             ips = get_ips_for_file(curr_dir + filename)
         else:
             ips = get_ips_for_file(curr_dir + '/' + filename)
-        read_from_node(filename, ips[0], './received_files')
+        read_from_node(filename, ips[0], '/received_files')
 
 
 def read_from_node(filename, addr, save_dir):
@@ -163,7 +180,7 @@ def read_from_node(filename, addr, save_dir):
                     print(l)
                 handle.close()
             else:
-                open('./received_files/' + filename, 'w+').close()
+                open('/received_files/' + filename, 'w+').close()
 
 def write(path, dfs_path):
     ips = get_ips()
@@ -198,7 +215,6 @@ def write1(fileinf, file, addr, backup_dir):
     else:
         for i in datanodes:
             if i != fileinf[1] and i != fileinf[2]:
-            # if i != fileinf[1]:
                 send_file(file, i, backup_dir)
                 if addr == fileinf[1]:
                     make_query("UPDATE files set datanode1='{}'".format(i), False)
@@ -340,6 +356,7 @@ def cd(path):
 
 
 if __name__ == "__main__":
+    make_query("CREATE TABLE IF NOT EXISTS files (filename Text, datanode1 TEXT, datanode2 TEXT, dir TEXT, is_dir BOOLEAN, size TEXT);", False)
     t = threading.Thread(target=manage_connections)
     t.daemon = True
     t.start()
@@ -353,53 +370,57 @@ if __name__ == "__main__":
         count = min(count, 15)
         time.sleep(count)
     while True:
-        # try:
-        print(curr_dir + ">", end=" ")
-        a = input().split(" ")
-        if a[0] == "initialize":
-            initialize()
+        try:
+            print(curr_dir + ">", end=" ")
+            b = input()
+            a = b.split(" ")
+            if a[0] == "initialize":
+                initialize()
 
-        elif a[0] == "cd":
-            cd(a[1])
-        elif a[0] == "ls":
-            ls()
+            elif a[0] == "cd":
+                cd(a[1])
+            elif a[0] == "ls":
+                ls()
 
-        elif a[0] == "info":
-            print(info(a[1])[0])
+            elif a[0] == "info":
+                print(info(a[1])[0])
 
-        elif a[0] == "mkdir":
-            mkdir(a[1])
-            ls()
+            elif a[0] == "mkdir":
+                mkdir(a[1])
+                ls()
 
-        elif a[0] == 'read':
-            read(a[1]) # TODO
+            elif a[0] == 'read':
+                read(a[1])
 
-        elif a[0] == "deletedir":
-            delete_dir(a[1])
-            ls()
-        elif a[0] == "close":
-            close()
+            elif a[0] == "deletedir":
+                delete_dir(a[1])
+                ls()
+            elif a[0] == "close":
+                close()
+                sys.exit(0)
+            elif a[0] == "delete":
+                delete_file(a[1])
+            elif a[0] == 'create':
+                create(a[1])
+
+            elif a[0] == 'move':
+                move(a[1], a[2])
+
+            elif a[0] == 'copy':
+                copy(a[1], a[2])
+
+            elif a[0] == 'write':
+                write(a[1], a[2])
+            elif a[0] == 'lsdn':
+                print(datanodes)
+            else:
+                print(a[0] + ": Command not found")
+        except SystemExit:
+            print("Bye")
             sys.exit(0)
-        elif a[0] == "delete":
-            delete_file(a[1])
-        elif a[0] == 'create':
-            create(a[1])
-
-        elif a[0] == 'move':
-            move(a[1], a[2])
-
-        elif a[0] == 'copy':
-            copy(a[1], a[2])
-
-        elif a[0] == 'write':
-            write(a[1], a[2])
-        elif a[0] == 'lsdn':
-            print(datanodes)
-        else:
-            print(a[0] + ": Command not found")
-        # except SystemExit:
-        #     print("Bye")
-        #     sys.exit(0)
-        # except:
-        #     print("Something's wrong")
-        #     pass
+        except KeyboardInterrupt:
+            print("Bye")
+            sys.exit(0)
+        except:
+            traceback.print_last()
+            continue
