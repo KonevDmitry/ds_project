@@ -8,7 +8,7 @@
         + ```sudo docker run -i -t --network='host' deadman445/namenode:latest <your_namenode_ip> <your_namenode_host>```
       + For datanode:
         + ```sudo docker run --network='host' -t deadman445/datanode:latest 10.0.15.10 <your_datanode_host> <your_datanode_ip> <your_namenode_host>```
- + ul Enjoy!  
+ + Enjoy!  
 ## Architectural diagrams
 ![Chat](https://github.com/KonevDmitry/ds_project/blob/master/Untitled%20Diagram.jpg)
 
