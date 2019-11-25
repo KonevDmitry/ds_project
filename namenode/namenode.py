@@ -57,7 +57,6 @@ def check_exists(filename):
 
 def check_exists_path(path):
     l = len(make_query("SELECT * From files where filename='{}'".format(path), True))
-    print(l)
     if l != 0:
         print("Already Exists:'{}'".format(path))
         return False
@@ -85,7 +84,7 @@ def make_query(query, is_return):
 
 def initialize():
     make_query("DROP TABLE IF EXISTS files;", is_return=False)
-    make_query('CREATE TABLE files (filename Text, datanode1 TEXT, datanode2 TEXT, dir TEXT, is_dir BOOLEAN, size TEXT);', False)
+    make_query('CREATE TABLE files (filename Text, datanode1 TEXT, datanode TEXT, dir TEXT, is_dir BOOLEAN, size TEXT);', False)
     for i in s.values():
         send_msg(i, "init")
 
@@ -95,7 +94,7 @@ def send_msg(sock, msg):
 
 
 def get_ips():
-    count = random.sample(datanodes, 2) # TODO сменть на 2
+    count = random.sample(datanodes, 2)
     return count
 
 
@@ -104,12 +103,9 @@ def check_nodes():
         for i in datanodes:
             a = i.split(":")
             response = subprocess.getstatusoutput("ping -c 1 " + a[0])
-            if response == 0:
-                try:
-                    backup(i)
-                except:
-                    print('Somethings wrong in manage_connections')
-                    continue
+            if response[0] == 1:
+                print("Node {} stopped working, starting backup process".format(a))
+                backup(i)
         time.sleep(5)
 
 
@@ -119,7 +115,6 @@ def manage_connections():
         port = connection.recvfrom(1024)
         print("Node with address: {} connected". format(addr))
         key = addr[0] + ":" + port[0].decode()
-        print(key)
         s[key] = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s[key].connect((addr[0], int(port[0].decode())))
         conn[key] = connection
@@ -129,23 +124,25 @@ def manage_connections():
 
 
 def create_dirs(addr):
-    a = make_query("Select from files where is_dir=True", True)
-    if len(a)>0:
-        for i in a:
-            if len(i)>0:
-                mkdir2(addr, i[0])
+    a = make_query("SELECT * from files where is_dir=TRUE;", True)
+
+    send_msg(sock=s[addr], msg="init")
+    for i in a:
+        if len(i)>0:
+            mkdir2(addr, i[0])
 
 def backup(addr):
     a = make_query("SELECT * FROM files Where datanode1='{}' AND is_dir=FALSE;".format(addr), True)
-    a += make_query("SELECT * FROM files Where datanode2='{}' AND is_dir=FALSE;".format(addr), True)
-    back_dir = './backup_{}'.format(addr)
+    a += make_query("SELECT * FROM files Where datanode='{}' AND is_dir=FALSE;".format(addr), True)
+    back_dir = '/backup_{}'.format(addr)
     for i in a:
         if i[1] != addr:
-            file = read_from_node(i[0], i[1], back_dir)  # TODO
+            read_for_backup(i[0], i[1], back_dir)  # TODO
         else:
-            file = read_from_node(i[0], i[2], back_dir)
-        write1(i, addr, file, back_dir)
+            read_for_backup(i[0], i[2], back_dir)
+        write1(i, i[0], addr, back_dir)
     datanodes.remove(addr)
+    print("Finished backup of the node")
 
 
 def read(filename):
@@ -156,6 +153,26 @@ def read(filename):
             ips = get_ips_for_file(curr_dir + '/' + filename)
         read_from_node(filename, ips[0], '/received_files')
 
+
+def read_for_backup(filename, addr, save_dir):
+    sock = s[addr]
+    rec_con = conn[addr]
+    send_msg(sock, "read " + var_stor + filename)
+    pathlib.Path(save_dir+filename[:filename.rfind("/")+1]).mkdir(parents=True, exist_ok=True)
+    with open(save_dir + filename, 'wb') as handle:
+        l = rec_con.recv(1024)
+        if l == b'1':
+            l = rec_con.recv(1024)
+            handle.write(l)
+            print("Ok")
+            while (len(l) > 1024):
+                print("Receiving...")
+                l = rec_con.recv(1024)
+                handle.write(l)
+                print(l)
+            handle.close()
+        else:
+            handle.close()
 
 def read_from_node(filename, addr, save_dir):
     if check_file(filename):
@@ -185,10 +202,10 @@ def read_from_node(filename, addr, save_dir):
 def write(path, dfs_path):
     ips = get_ips()
     if len(dfs_path[:dfs_path.rfind('/')]) == 0:
-        make_query("INSERT INTO files(filename, datanode1, datanode2, dir,is_dir, size) VALUES ('{}','{}','{}', '{}',{}, '{}')".
+        make_query("INSERT INTO files(filename, datanode1, datanode, dir,is_dir, size) VALUES ('{}','{}','{}', '{}',{}, '{}')".
                format(dfs_path, ips[0], ips[1], '/',False, os.path.getsize(path)), False)
     else:
-        make_query("INSERT INTO files(filename, datanode1, datanode2, dir,is_dir, size) VALUES ('{}','{}','{}', '{}',{}, '{}')".
+        make_query("INSERT INTO files(filename, datanode1, datanode, dir,is_dir, size) VALUES ('{}','{}','{}', '{}',{}, '{}')".
                format(dfs_path, ips[0], ips[1], dfs_path[:dfs_path.rfind('/')],False, os.path.getsize(path)), False)
     for i in ips:
         send_file(path, dfs_path, i)
@@ -215,11 +232,11 @@ def write1(fileinf, file, addr, backup_dir):
     else:
         for i in datanodes:
             if i != fileinf[1] and i != fileinf[2]:
-                send_file(file, i, backup_dir)
+                send_file(backup_dir + file, file, i)
                 if addr == fileinf[1]:
                     make_query("UPDATE files set datanode1='{}'".format(i), False)
                 else:
-                    make_query("UPDATE files set datanode2='{}'".format(i), False)
+                    make_query("UPDATE files set datanode='{}'".format(i), False)
 
 
 def mkdir(new_path):
@@ -228,13 +245,13 @@ def mkdir(new_path):
             path = curr_dir + "/" + new_path
         else:
             path = curr_dir + new_path
-        make_query("Insert into files(filename, datanode1, datanode2, dir, is_dir, size) VALUES ('{0}','{1}','{2}','{3}', {4}, '-')"
+        make_query("Insert into files(filename, datanode1, datanode, dir, is_dir, size) VALUES ('{0}','{1}','{2}','{3}', {4}, '-')"
                    .format(path, "_", "_", curr_dir, True), False)
         for i in s.values():
             send_msg(i, "makedir " + var_stor + path)
 
 def mkdir2(addr, path):
-    send_msg(addr, "makedir " + var_stor + path)
+    send_msg(s[addr], "makedir " + var_stor + path)
 
 
 def info(filename):
@@ -301,13 +318,13 @@ def create(filename):
             send_msg(s[ips[0]], "create " + var_stor+curr_dir + "/" + filename)
             send_msg(s[ips[1]], "create " + var_stor+curr_dir + "/" + filename) #TODO
             make_query(
-                "Insert into files(filename, datanode1, datanode2, dir, is_dir, size) VALUES ('{0}','{1}','{2}','{3}', {4}, '0')"
+                "Insert into files(filename, datanode1, datanode, dir, is_dir, size) VALUES ('{0}','{1}','{2}','{3}', {4}, '0')"
                     .format(curr_dir + "/" + filename, ips[0], ips[1], curr_dir, False), False)
         else:
             send_msg(s[ips[0]], "create " + var_stor + curr_dir + filename)
             send_msg(s[ips[1]], "create " + var_stor + curr_dir + filename) #TODO
             make_query(
-                "Insert into files(filename, datanode1, datanode2, dir, is_dir, size) VALUES ('{0}','{1}','{2}','{3}', {4}, '0')"
+                "Insert into files(filename, datanode1, datanode, dir, is_dir, size) VALUES ('{0}','{1}','{2}','{3}', {4}, '0')"
                     .format(curr_dir + filename, ips[0], ips[1], curr_dir, False), False)
 
 
@@ -315,8 +332,8 @@ def move(path1, path2):
     if check_file_path(path1):
         ips = get_ips_for_file(path1)
         make_query(
-            "Insert into files(filename, datanode1, datanode2, dir, is_dir) VALUES ('{0}','{1}','{2}','{3}', {4})"
-                .format(path2, ips[0], ips[1], curr_dir, False), False)
+            "Insert into files(filename, datanode1, datanode, dir, is_dir) VALUES ('{0}','{1}','{2}','{3}', {4})"
+                .format(path2, ips[0], ips[1], path2[:path2.rfind('/')], False), False)
         make_query("DELETE FROM files Where filename='{}'".format(path1), False)
         print(ips)
         send_msg(s[ips[0]], "move " + var_stor+path1 + " " + var_stor+path2)
@@ -327,8 +344,8 @@ def copy(path1, path2):
     if check_file_path(path1) and check_exists_path(path2):
         ips = get_ips_for_file(path1)
         make_query(
-            "Insert into files(filename, datanode1, datanode2, dir, is_dir) VALUES ('{0}','{1}','{2}','{3}', {4})"
-                .format(path2, ips[0], "ips[1]", curr_dir, False), False)
+            "Insert into files(filename, datanode1, datanode, dir, is_dir) VALUES ('{0}','{1}','{2}','{3}', {4})"
+                .format(path2, ips[0], ips[1], path2[:path2.rfind('/')], False), False)
         send_msg(s[ips[0]], "copy {} {}".format(var_stor+path1, var_stor+path2))
         send_msg(s[ips[1]], "copy {} {}".format(var_stor+path1, var_stor+path2))
 
@@ -356,7 +373,7 @@ def cd(path):
 
 
 if __name__ == "__main__":
-    make_query("CREATE TABLE IF NOT EXISTS files (filename Text, datanode1 TEXT, datanode2 TEXT, dir TEXT, is_dir BOOLEAN, size TEXT);", False)
+    make_query("CREATE TABLE IF NOT EXISTS files (filename Text, datanode1 TEXT, datanode TEXT, dir TEXT, is_dir BOOLEAN, size TEXT);", False)
     t = threading.Thread(target=manage_connections)
     t.daemon = True
     t.start()
@@ -374,24 +391,19 @@ if __name__ == "__main__":
             print(curr_dir + ">", end=" ")
             b = input()
             a = b.split(" ")
-            if a[0] == "initialize":
+            if a[0] == "init":
                 initialize()
-
             elif a[0] == "cd":
                 cd(a[1])
             elif a[0] == "ls":
                 ls()
-
             elif a[0] == "info":
                 print(info(a[1])[0])
-
             elif a[0] == "mkdir":
                 mkdir(a[1])
                 ls()
-
             elif a[0] == 'read':
                 read(a[1])
-
             elif a[0] == "deletedir":
                 delete_dir(a[1])
                 ls()
@@ -402,13 +414,10 @@ if __name__ == "__main__":
                 delete_file(a[1])
             elif a[0] == 'create':
                 create(a[1])
-
             elif a[0] == 'move':
                 move(a[1], a[2])
-
             elif a[0] == 'copy':
                 copy(a[1], a[2])
-
             elif a[0] == 'write':
                 write(a[1], a[2])
             elif a[0] == 'lsdn':
@@ -422,5 +431,5 @@ if __name__ == "__main__":
             print("Bye")
             sys.exit(0)
         except:
-            traceback.print_last()
+            print("Something went wrong")
             continue
