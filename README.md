@@ -1,6 +1,7 @@
 # Group Project Assignment: Distributed File System
 
 ## Project setup
+- ul
 + ul
   1) Install docker on your machine if it is not installed
   2) Install postgres and run it's container on namenode
